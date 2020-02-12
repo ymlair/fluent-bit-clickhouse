@@ -239,7 +239,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 
 			switch k {
 			case "time":
-				log.Time, _ := time.ParseInLocation("2006-01-02 15:04:05", value, time.Local)
+				log.Time, _ = time.ParseInLocation("2006-01-02 15:04:05", value, time.Local)
 			case "loglevel":
 				log.LogLevel = value
 			case "line":
