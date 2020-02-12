@@ -25,7 +25,7 @@ var (
 	table     string
 	batchSize int
 
-	insertSQL = "INSERT INTO %s.%s(date, cluster, namespace, app, pod_name, container_name, host, log, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	insertSQL = "INSERT INTO %s.%s(date, loglevel, line, pod, msg) VALUES (?, ?, ?, ?, ?)"
 
 	rw sync.RWMutex
 	buffer = make([]Log, 0)
@@ -39,14 +39,11 @@ const (
 )
 
 type Log struct {
-	Cluster       string
-	Namespace     string
-	App           string
+	Time       time.Time
+	LogLevel     string
+	Line          string
 	Pod       string
-	Container string
-	Host          string
-	Log           string
-	Ts            time.Time
+	Msg           string
 }
 
 //export FLBPluginRegister
@@ -241,23 +238,16 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 			}
 
 			switch k {
-			case "cluster":
-				log.Cluster = value
-			case "kubernetes_namespace_name":
-				log.Namespace = value
-			case "kubernetes_labels_app":
-				log.App = value
-			case "kubernetes_labels_k8s-app":
-				log.App = value
-			case "kubernetes_pod_name":
+			case "time":
+				log.Time, _ := time.ParseInLocation("2006-01-02 15:04:05", value, time.Local)
+			case "loglevel":
+				log.LogLevel = value
+			case "line":
+				log.Line = value
+			case "pod":
 				log.Pod = value
-			case "kubernetes_container_name":
-				log.Container = value
-			case "kubernetes_host":
-				log.Host = value
-			case "log":
-				log.Log = value
-			}
+			case "msg":
+				log.Msg = value
 
 		}
 
@@ -295,8 +285,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 	for _, l := range buffer {
 		// ensure tags are inserted in the same order each time
 		// possibly/probably impacts indexing?
-		_, err = smt.Exec(l.Ts, l.Cluster, l.Namespace, l.App, l.Pod, l.Container, l.Host,
-			l.Log, l.Ts)
+		_, err = smt.Exec(l.Time, l.LogLevel, l.Line, l.Pod, l.Msg)
 
 		if err != nil {
 			klog.Errorf("statement exec failure: %s", err.Error())
@@ -326,5 +315,3 @@ func FLBPluginExit() int {
 
 func main() {
 }
-
-
