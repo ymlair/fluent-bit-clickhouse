@@ -25,7 +25,7 @@ var (
 	table     string
 	batchSize int
 
-	insertSQL = "INSERT INTO %s.%s(date, loglevel, line, pod, msg) VALUES (?, ?, ?, ?, ?)"
+	insertSQL = "INSERT INTO %s.%s(date, loglevel, line, pod, msg, ts) VALUES (?, ?, ?, ?, ?, ?)"
 
 	rw sync.RWMutex
 	buffer = make([]Log, 0)
@@ -39,11 +39,12 @@ const (
 )
 
 type Log struct {
-	Time       time.Time
+	Time       string
 	LogLevel     string
 	Line          string
 	Pod       string
 	Msg           string
+	Ts        time.Time
 }
 
 //export FLBPluginRegister
@@ -239,7 +240,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 
 			switch k {
 			case "time":
-				log.Time, _ := time.ParseInLocation("2006-01-02 15:04:05", value, time.Local)
+				log.Time = value
 			case "loglevel":
 				log.LogLevel = value
 			case "line":
@@ -251,7 +252,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 			}
 		}
 
-		if log.App == "" {
+		if log.Msg == "" {
 			break
 		}
 
@@ -285,7 +286,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 	for _, l := range buffer {
 		// ensure tags are inserted in the same order each time
 		// possibly/probably impacts indexing?
-		_, err = smt.Exec(l.Time, l.LogLevel, l.Line, l.Pod, l.Msg)
+		_, err = smt.Exec(l.Ts, l.LogLevel, l.Line, l.Pod, l.Msg, l.Ts)
 
 		if err != nil {
 			klog.Errorf("statement exec failure: %s", err.Error())
